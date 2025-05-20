@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Juego de Polla de Fútbol</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: #f0f0f0;
+    margin: 0; padding: 20px;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  header {
+    margin-bottom: 30px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 2.8rem;
+    background: -webkit-linear-gradient(45deg,#ffb347,#ffcc33);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+  }
+  .match {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    width: 320px;
+    box-shadow: 0 0 8px rgba(255 255 255 / 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .team {
+    font-weight: 700;
+    font-size: 1.2rem;
+    flex: 1;
+  }
+  input[type=number] {
+    width: 55px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 6px;
+    border: none;
+    outline: none;
+    background-color: #fff;
+    color: #222;
+    box-shadow: inset 1px 1px 4px rgba(0,0,0,0.2);
+    margin: 0 10px;
+  }
+  button {
+    background: #ffcc33;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #222;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 25px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+  }
+  button:hover {
+    background: #ffb347;
+  }
+  #status {
+    margin-top: 15px;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #b1ffc2;
+  }
+  footer {
+    margin-top: auto;
+    font-size: 0.85rem;
+    color: #ddd;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Juego de Polla de Fútbol</h1>
+  <p>Ingresa los resultados de los partidos</p>
+</header>
+
+<div id="matches-container">
+  <!-- Los partidos se generarán aquí -->
+</div>
+
+<button id="btn-save">Guardar Resultados</button>
+<button id="btn-download-pdf">Descargar Resultados en PDF</button>
+
+<div id="status"></div>
+
+<footer>
+  &copy; 2024 Juego de Polla de Fútbol - Demo
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // Partidos de ejemplo para el prototipo
+  const matches = [
+    { id: 1, local: "Barcelona", visitante: "Real Madrid" },
+    { id: 2, local: "Atlético Madrid", visitante: "Sevilla" },
+    { id: 3, local: "Valencia", visitante: "Villarreal" }
+  ];
+
+  const matchesContainer = document.getElementById("matches-container");
+  const statusEl = document.getElementById("status");
+
+  // Función para crear el DOM de cada partido con inputs para goles
+  function createMatchElement(match) {
+    const div = document.createElement("div");
+    div.className = "match";
+    div.dataset.id = match.id;
+    div.innerHTML = `
+      <div class="team">${match.local}</div>
+      <input type="number" min="0" step="1" placeholder="0" class="score-local" aria-label="Goles ${match.local}" />
+      <span> - </span>
+      <input type="number" min="0" step="1" placeholder="0" class="score-visitor" aria-label="Goles ${match.visitante}" />
+      <div class="team">${match.visitante}</div>
+    `;
+    return div;
+  }
+
+  // Renderizar partidos
+  matches.forEach(match => {
+    matchesContainer.appendChild(createMatchElement(match));
+  });
+
+  // Guardar resultados en localStorage simulando base de datos
+  function saveResults() {
+    const results = [];
+    let validEntries = true;
+    matchesContainer.querySelectorAll(".match").forEach(div => {
+      const id = div.dataset.id;
+      const localTeam = div.querySelector(".team:first-child").textContent;
+      const visitorTeam = div.querySelector(".team:last-child").textContent;
+      const localGoals = div.querySelector(".score-local").value;
+      const visitorGoals = div.querySelector(".score-visitor").value;
+
+      // Validar que los goles sean números no vacíos
+      if (localGoals === "" || visitorGoals === "" || localGoals < 0 || visitorGoals < 0) {
+        validEntries = false;
+      }
+
+      results.push({
+        id: +id,
+        local: localTeam,
+        visitor: visitorTeam,
+        goalsLocal: Number(localGoals),
+        goalsVisitor: Number(visitorGoals)
+      });
+    });
+
+    if (!validEntries) {
+      statusEl.textContent = "Por favor, ingresa goles válidos en todos los partidos.";
+      statusEl.style.color = "#ff7070";
+      return;
+    }
+
+    localStorage.setItem("pollaFutbolResults", JSON.stringify(results));
+    statusEl.textContent = "Resultados guardados correctamente 👍";
+    statusEl.style.color = "#b1ffc2";
+  }
+
+  // Generar PDF con jsPDF basado en resultados guardados
+  async function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const resultsStr = localStorage.getItem("pollaFutbolResults");
+    if (!resultsStr) {
+      statusEl.textContent = "No hay resultados guardados para descargar.";
+      statusEl.style.color = "#ff7070";
+      return;
+    }
+
+    const results = JSON.parse(resultsStr);
+    doc.setFontSize(20);
+    doc.text("Resultados de tu Polla de Fútbol", 14, 22);
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+
+    let yPos = 35;
+    results.forEach((match, idx) => {
+      const line = `${match.local} ${match.goalsLocal} - ${match.goalsVisitor} ${match.visitor}`;
+      doc.text(line, 14, yPos);
+      yPos += 10;
+    });
+
+    doc.save("polla-resultados.pdf");
+  }
+
+  document.getElementById("btn-save").addEventListener("click", saveResults);
+  document.getElementById("btn-download-pdf").addEventListener("click", downloadPDF);
+</script>
+</body>
+</html>
+
